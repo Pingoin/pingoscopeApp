@@ -1,0 +1,7 @@
+{
+  "appId": "eu.pingoin.pingoscope",
+  "appName": "Pingoscope",
+  "bundledWebRuntime": false,
+  "npmClient": "npm",
+  "webDir": "www"
+}
