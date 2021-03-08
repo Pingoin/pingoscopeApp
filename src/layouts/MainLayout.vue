@@ -41,7 +41,7 @@
     </q-drawer>
 
     <q-page-container>
-      <router-view />
+      <router-view  :socket="socket" />
     </q-page-container>
   </q-layout>
 </template>
@@ -94,12 +94,14 @@ const linksData = [
   }
 ]
 
-import { Vue, Component } from 'vue-property-decorator'
+import { Component, Prop, Vue } from "vue-property-decorator";
+import Sockethelper from "../plugins/SocketHelper";
 
 @Component({
   components: { EssentialLink }
 })
 export default class MainLayout extends Vue {
+  @Prop() private socket!: Sockethelper;
   leftDrawerOpen = false;
   essentialLinks = linksData;
 }
