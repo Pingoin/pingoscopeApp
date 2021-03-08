@@ -1,7 +1,6 @@
 <template>
   <div class="home">
     <img alt="Vue logo" src="../assets/PingoinTeleskop.png" width="200" />
-    Battery status is: <strong>{{ batteryStatus }}</strong>
     <telescope/>
   </div>
 </template>
@@ -20,14 +19,7 @@ export default class Home extends Vue {
   batteryStatus= 'determining...';
   constructor() {
     super();
-  }
-  updateBatteryStatus (status:any) {
-      this.batteryStatus = `Level: ${status.level}, plugged: ${status.isPlugged}`;
-    }
-
-  created () {
-    // we register the event like on plugin's doc page
-    window.addEventListener('batterystatus', this.updateBatteryStatus, false)
+    this.$q.dark.set(true)
   }
 }
 </script>
