@@ -2,13 +2,7 @@
   <div class="home">
     <img alt="Vue logo" src="../assets/PingoinTeleskop.png" width="200" />
     Battery status is: <strong>{{ batteryStatus }}</strong>
-    <q-select
-      v-model="port"
-      :items="socket.ports"
-      label="Serial Port"
-    ></q-select>
     <telescope/>
-    <q-btn elevation="2" @click="socket.setPort(port)">Verbinden</q-btn>
   </div>
 </template>
 
