@@ -43,6 +43,16 @@ export default class Globals {
       azimuth: degreesToString(this.actualPosition.azimuth)
     };
   }
+
+  public get sensorPositionHorizontalString(): {
+    altitude: string;
+    azimuth: string;
+  } {
+    return {
+      altitude: degreesToString(this.sensorPosition.altitude),
+      azimuth: degreesToString(this.sensorPosition.azimuth)
+    };
+  }
   public set actualPositionHorizontal(value: HorizontalCoordinates) {
     this.actualPosition = value;
   }

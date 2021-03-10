@@ -2,8 +2,8 @@
   <div class="home">
     <p>{{ output }}</p>
     <h4>Sensor Data</h4>
-    <status-row :caption="'Azimuth'" :status="global.sensorPositionHorizontal.azimuth"></status-row>
-    <status-row :caption="'Altitude'" :status="global.sensorPositionHorizontal.altitude"></status-row>
+    <status-row :caption="'Azimuth'" :status="global.sensorPositionHorizontalString.azimuth"></status-row>
+    <status-row :caption="'Altitude'" :status="global.sensorPositionHorizontalString.altitude"></status-row>
     <h4>Stepper Data</h4>
     <status-row :caption="'Azimuth'" :status="global.actualPositionHorizontalString.azimuth"></status-row>
     <status-row :caption="'Altitude'" :status="global.actualPositionHorizontalString.altitude"></status-row>
@@ -25,7 +25,6 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from "vue-property-decorator";
-import aa from "../backend/astronomical-algorithms";
 import StatusRow from "./StatusRow.vue";
 import Globals from "../plugins/Globals";
 import { BluetoothSerial } from "@ionic-native/bluetooth-serial";
@@ -110,8 +109,7 @@ export default class Telescope extends Vue {
         };
         //this.sendPosition();
         //this.output=new Date().toISOString()+":\n"+   JSON.stringify(this.istPosition,null,2);
-
-        this.webSocket.send(JSON.stringify(this.global.actualPositionEquatorial));
+        if (this.webSocket.readyState == WebSocket.OPEN) this.webSocket.send(JSON.stringify(this.global.actualPositionEquatorial));
         break;
       case 3:
         this.global.sensorPositionHorizontal = {
@@ -129,7 +127,7 @@ export default class Telescope extends Vue {
       .then(() => BluetoothSerial.write("01\n"))
       .then(() => new Promise((resolve) => setTimeout(resolve, 100)))
       .then(() => {
-        const {azimuth,altitude}=this.global.targetPositionHorizontal;
+        const { azimuth, altitude } = this.global.targetPositionHorizontal;
         const msg = `02;${azimuth > 0 ? "+" : ""}${azimuth.toPrecision(Math.abs(azimuth) > 1 ? 16 : 15)};${
           altitude > 0 ? "+" : ""
         }${altitude.toPrecision(Math.abs(altitude) > 1 ? 16 : 15)}\n`;

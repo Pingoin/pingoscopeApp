@@ -31,3 +31,6 @@ yarn-error.log*
 *.ntvs*
 *.njsproj
 *.sln
+quasar-release-key.jks
+quasar-debug-key.jks
+build.cordova.json
