@@ -20,6 +20,7 @@
     <q-select v-model="device" :options="devices" option-label="name" option-disable="inactive" map-options label="Bluetooth device"></q-select>
     <q-btn elevation="2" @click="connect(device)">Verbinden</q-btn>
     <q-btn elevation="2" @click="syncPos()">null Setzen</q-btn>
+    <q-btn elevation="2" @click="connectSocket()">mit Socket verbinden</q-btn>
   </div>
 </template>
 
@@ -28,6 +29,10 @@ import { Component, Prop, Vue } from "vue-property-decorator";
 import StatusRow from "./StatusRow.vue";
 import Globals from "../plugins/Globals";
 import { BluetoothSerial } from "@ionic-native/bluetooth-serial";
+import {
+  EquatorialCoordinates,
+  HorizontalCoordinates
+} from "astronomical-algorithms/dist/coordinates";
 
 interface Device {
   name: string;
@@ -49,24 +54,22 @@ export default class Telescope extends Vue {
     gyro: 0,
   };
   private global: Globals = Globals.getInstance();
-  private webSocket: WebSocket;
+  private webSocket: WebSocket|null=null;
   private getStatsInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     super();
-    this.webSocket = new WebSocket("ws://192.168.178.15:4444");
   }
 
   mounted(): void {
+
     // we register the event like on plugin's doc page
     BluetoothSerial.list().then((devices) => {
       (devices as Device[]).forEach((device) => {
         this.devices.push(device);
       });
     });
-    this.webSocket.onmessage = (event) => {
-      this.global.targetPositionEquatorial = JSON.parse(event.data);
-    };
+
   }
 
   connect(device: Device | null) {
@@ -90,6 +93,29 @@ export default class Telescope extends Vue {
       }
     );
   }
+connectSocket(){
+    this.webSocket = new WebSocket("ws://192.168.178.111:4444");
+    console.log(this.webSocket.readyState);
+
+        this.webSocket.onopen = function(event) {
+      console.log(event)
+      console.log("Successfully connected to the echo websocket server...")
+    }
+
+    this.webSocket.onmessage = (event) => {
+      console.log(event.data);
+      const data=JSON.parse(event.data) as {type:string,payload:unknown};
+      switch (data.type) {
+        case "target":
+          this.global.targetPositionEquatorial = data.payload as EquatorialCoordinates;
+      
+        default:
+          break;
+      }
+      
+    };
+}
+
   private interpretTelegram(telegram: string) {
     const msg = telegram.split(";");
     const command = parseInt(msg[0], 16);
@@ -109,7 +135,7 @@ export default class Telescope extends Vue {
         };
         //this.sendPosition();
         //this.output=new Date().toISOString()+":\n"+   JSON.stringify(this.istPosition,null,2);
-        if (this.webSocket.readyState == WebSocket.OPEN) this.webSocket.send(JSON.stringify(this.global.actualPositionEquatorial));
+        if (this.webSocket!=null&&this.webSocket.readyState == WebSocket.OPEN) this.webSocket.send(JSON.stringify({type:"position",payload:this.global.actualPositionEquatorial}));
         break;
       case 3:
         this.global.sensorPositionHorizontal = {

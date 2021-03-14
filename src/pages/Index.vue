@@ -2,7 +2,7 @@
   <div class="home">
     <img alt="Vue logo" src="../assets/PingoinTeleskop.png" width="200" />
     <telescope/>
-    <stellarium/>
+   <!-- <stellarium/> -->
   </div>
 </template>
 

@@ -1,0 +1,1 @@
+{"plugins":["cordova-plugin-whitelist","cordova-plugin-bluetoothclassic-serial","cordova-plugin-battery-status","cordova-plugin-bluetooth-serial","cordova-plugin-splashscreen","cordova-plugin-websocket-server","cordova-plugin-add-swift-support"]}
