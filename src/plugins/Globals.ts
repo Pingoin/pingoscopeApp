@@ -5,12 +5,10 @@ import {
 import aa from "../backend/astronomical-algorithms";
 import { degreesToString, hoursToString } from "./helper";
 
-const latitude = 53 + 44 / 60 + 16.44 / 3600;
-const longitude = 14 + 2 / 60 + 40.92 / 3600;
-
 export default class Globals {
   private static instance: Globals;
-
+  longitude= 14 + 2 / 60 + 40.92 / 3600;
+  latitude= 53 + 44 / 60 + 16.44 / 3600;
   public static getInstance(): Globals {
     if (this.instance == undefined) {
       this.instance = new Globals();
@@ -63,8 +61,8 @@ export default class Globals {
       jd,
       this.actualPosition.altitude,
       this.actualPosition.azimuth,
-      longitude,
-      latitude
+      this.longitude,
+      this.latitude
     );
     eq.rightAscension -= 0.5 / 3600;
     eq.rightAscension = Math.max(eq.rightAscension, 0);
@@ -82,8 +80,8 @@ export default class Globals {
     const jd = aa.julianday.getJulianDay(new Date()) || 0;
     return aa.coordinates.transformEquatorialToHorizontal(
       jd,
-      longitude,
-      latitude,
+      this.longitude,
+      this.latitude,
       this.targetPosition.rightAscension,
       this.targetPosition.declination
     );

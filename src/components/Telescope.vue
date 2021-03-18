@@ -18,9 +18,12 @@
     <status-row caption="Compass" :status="calibrationStatus.mag"></status-row>
     <status-row caption="Acceleration" :status="calibrationStatus.acc"></status-row>
     <q-select v-model="device" :options="devices" option-label="name" option-disable="inactive" map-options label="Bluetooth device"></q-select>
-    <q-btn elevation="2" @click="connect(device)">Verbinden</q-btn>
+    <q-btn elevation="2" @click="connectBT(device)">Bluetooth Verbinden</q-btn>
+    <q-btn elevation="2" @click="disconnectBT()">bluetooth trennen</q-btn>
     <q-btn elevation="2" @click="syncPos()">null Setzen</q-btn>
     <q-btn elevation="2" @click="connectSocket()">mit Socket verbinden</q-btn>
+    <q-btn elevation="2" @click="disconnectSocket()">von Socket Trennen</q-btn>
+    <q-btn elevation="2" @click="getPosition()">Position</q-btn>
   </div>
 </template>
 
@@ -29,10 +32,12 @@ import { Component, Prop, Vue } from "vue-property-decorator";
 import StatusRow from "./StatusRow.vue";
 import Globals from "../plugins/Globals";
 import { BluetoothSerial } from "@ionic-native/bluetooth-serial";
+import { Geolocation, Geoposition } from '@ionic-native/geolocation';
 import {
   EquatorialCoordinates,
   HorizontalCoordinates
 } from "astronomical-algorithms/dist/coordinates";
+import PositionError from "app/src-cordova/platforms/android/app/build/intermediates/merged_assets/debug/out/www/plugins/cordova-plugin-geolocation/www/PositionError";
 
 interface Device {
   name: string;
@@ -62,7 +67,6 @@ export default class Telescope extends Vue {
   }
 
   mounted(): void {
-
     // we register the event like on plugin's doc page
     BluetoothSerial.list().then((devices) => {
       (devices as Device[]).forEach((device) => {
@@ -72,7 +76,7 @@ export default class Telescope extends Vue {
 
   }
 
-  connect(device: Device | null) {
+  connectBT(device: Device | null) {
     if (device != null) {
       this.output = device.name;
       BluetoothSerial.connect(device.id).subscribe(() => {
@@ -80,6 +84,11 @@ export default class Telescope extends Vue {
         this.readSerial();
       });
     }
+  }
+
+    disconnectBT() {
+      BluetoothSerial.disconnect().then(()=>alert("Bluetooth disconnected"));
+    
   }
   readSerial() {
     BluetoothSerial.subscribe("\n").subscribe(
@@ -115,6 +124,12 @@ connectSocket(){
       
     };
 }
+
+disconnectSocket(){
+    this.webSocket?.close();
+    this.webSocket=null;
+}
+
 
   private interpretTelegram(telegram: string) {
     const msg = telegram.split(";");
@@ -166,6 +181,16 @@ connectSocket(){
 
   private syncPos() {
     BluetoothSerial.write("04\n");
+  }
+
+  getPosition(){
+    Geolocation.getCurrentPosition().then((resp)=>{
+      const coords=resp.coords
+      this.global.longitude=coords.longitude;
+      this.global.latitude=coords.latitude;
+      alert(coords.longitude);
+      
+    }).catch((error)=>{alert(error);});
   }
 }
 </script>

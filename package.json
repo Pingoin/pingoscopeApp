@@ -8,12 +8,13 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts,.vue ./",
     "test": "echo \"No test specified\" && exit 0",
-    "cordova:dev": "quasar dev -m cordova -T android -- --buildConfig=\"../build.cordova.json\"",
+    "cordova:dev": "quasar dev -m cordova -T android --ssl -- --buildConfig=\"../build.cordova.json\"",
     "cordova:build": "quasar build -m cordova -T android -- --buildConfig=\"../build.cordova.json\""
   },
   "dependencies": {
     "@ionic-native/bluetooth-serial": "^5.31.1",
     "@ionic-native/core": "^5.31.1",
+    "@ionic-native/geolocation": "^5.31.1",
     "@ionic-native/web-socket-server": "^5.31.1",
     "@quasar/extras": "^1.0.0",
     "@types/cordova-plugin-bluetoothclassic-serial": "^0.9.2",
