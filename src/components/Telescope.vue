@@ -1,17 +1,6 @@
 <template>
   <div class="home">
-    <p>{{ output }}</p>
-    <h4>Sensor Data</h4>
-    <status-row :caption="'Azimuth'" :status="global.sensorPositionHorizontalString.azimuth"></status-row>
-    <status-row :caption="'Altitude'" :status="global.sensorPositionHorizontalString.altitude"></status-row>
-    <h4>Stepper Data</h4>
-    <status-row :caption="'Azimuth'" :status="global.actualPositionHorizontalString.azimuth"></status-row>
-    <status-row :caption="'Altitude'" :status="global.actualPositionHorizontalString.altitude"></status-row>
-
-    <h4>Target</h4>
-    <status-row :caption="'Deklination'" :status="global.targetPositionEquatorialString.declination"></status-row>
-    <status-row :caption="'Rectaszendenz'" :status="global.targetPositionEquatorialString.rightAscension"></status-row>
-
+    <q-table title="Treats" :data="tableData" row-key="name" />
     <h4>Calibtration Data</h4>
     <status-row caption="System" :status="calibrationStatus.sys"></status-row>
     <status-row caption="Gyro" :status="calibrationStatus.gyro"></status-row>
@@ -32,12 +21,10 @@ import { Component, Prop, Vue } from "vue-property-decorator";
 import StatusRow from "./StatusRow.vue";
 import Globals from "../plugins/Globals";
 import { BluetoothSerial } from "@ionic-native/bluetooth-serial";
-import { Geolocation, Geoposition } from '@ionic-native/geolocation';
-import {
-  EquatorialCoordinates,
-  HorizontalCoordinates
-} from "astronomical-algorithms/dist/coordinates";
-import PositionError from "app/src-cordova/platforms/android/app/build/intermediates/merged_assets/debug/out/www/plugins/cordova-plugin-geolocation/www/PositionError";
+import { Geolocation, Geoposition } from "@ionic-native/geolocation";
+import { degreesToString, hoursToString } from "../plugins/helper";
+import { EquatorialCoordinates, HorizontalCoordinates } from "astronomical-algorithms/dist/coordinates";
+import * as geomag from "geomag";
 
 interface Device {
   name: string;
@@ -59,7 +46,7 @@ export default class Telescope extends Vue {
     gyro: 0,
   };
   private global: Globals = Globals.getInstance();
-  private webSocket: WebSocket|null=null;
+  private webSocket: WebSocket | null = null;
   private getStatsInterval: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -67,13 +54,14 @@ export default class Telescope extends Vue {
   }
 
   mounted(): void {
+    this.getPosition(false);
     // we register the event like on plugin's doc page
     BluetoothSerial.list().then((devices) => {
+      this.devices=[];
       (devices as Device[]).forEach((device) => {
         this.devices.push(device);
       });
     });
-
   }
 
   connectBT(device: Device | null) {
@@ -86,9 +74,8 @@ export default class Telescope extends Vue {
     }
   }
 
-    disconnectBT() {
-      BluetoothSerial.disconnect().then(()=>alert("Bluetooth disconnected"));
-    
+  disconnectBT() {
+    BluetoothSerial.disconnect().then(() => alert("Bluetooth disconnected"));
   }
   readSerial() {
     BluetoothSerial.subscribe("\n").subscribe(
@@ -102,34 +89,31 @@ export default class Telescope extends Vue {
       }
     );
   }
-connectSocket(){
-    this.webSocket = new WebSocket("ws://192.168.178.111:4444");
+  connectSocket() {
+    this.webSocket = new WebSocket("wss://192.168.178.111:4444");
     console.log(this.webSocket.readyState);
 
-        this.webSocket.onopen = function(event) {
-      console.log(event)
-      console.log("Successfully connected to the echo websocket server...")
-    }
+    this.webSocket.onopen = function (event) {
+      console.log(event);
+      console.log("Successfully connected to the echo websocket server...");
+    };
 
     this.webSocket.onmessage = (event) => {
       console.log(event.data);
-      const data=JSON.parse(event.data) as {type:string,payload:unknown};
+      const data = JSON.parse(event.data) as { type: string; payload: unknown };
       switch (data.type) {
         case "target":
-          this.global.targetPositionEquatorial = data.payload as EquatorialCoordinates;
-      
+          this.global.targetPosition.equatorial = data.payload as EquatorialCoordinates;
         default:
           break;
       }
-      
     };
-}
+  }
 
-disconnectSocket(){
+  disconnectSocket() {
     this.webSocket?.close();
-    this.webSocket=null;
-}
-
+    this.webSocket = null;
+  }
 
   private interpretTelegram(telegram: string) {
     const msg = telegram.split(";");
@@ -144,16 +128,17 @@ disconnectSocket(){
         break;
       case 1:
         //console.log(msg);
-        this.global.actualPositionHorizontal = {
+        this.global.actualPosition.horizontal = {
           azimuth: parseFloat(msg[1]),
           altitude: parseFloat(msg[2]),
         };
         //this.sendPosition();
         //this.output=new Date().toISOString()+":\n"+   JSON.stringify(this.istPosition,null,2);
-        if (this.webSocket!=null&&this.webSocket.readyState == WebSocket.OPEN) this.webSocket.send(JSON.stringify({type:"position",payload:this.global.actualPositionEquatorial}));
+        if (this.webSocket != null && this.webSocket.readyState == WebSocket.OPEN)
+          this.webSocket.send(JSON.stringify({ type: "position", payload: this.global.actualPosition.equatorial }));
         break;
       case 3:
-        this.global.sensorPositionHorizontal = {
+        this.global.sensorPosition.horizontal = {
           azimuth: parseFloat(msg[1]),
           altitude: parseFloat(msg[2]),
         };
@@ -168,7 +153,7 @@ disconnectSocket(){
       .then(() => BluetoothSerial.write("01\n"))
       .then(() => new Promise((resolve) => setTimeout(resolve, 100)))
       .then(() => {
-        const { azimuth, altitude } = this.global.targetPositionHorizontal;
+        const { azimuth, altitude } = this.global.targetPosition.horizontal;
         const msg = `02;${azimuth > 0 ? "+" : ""}${azimuth.toPrecision(Math.abs(azimuth) > 1 ? 16 : 15)};${
           altitude > 0 ? "+" : ""
         }${altitude.toPrecision(Math.abs(altitude) > 1 ? 16 : 15)}\n`;
@@ -183,14 +168,49 @@ disconnectSocket(){
     BluetoothSerial.write("04\n");
   }
 
-  getPosition(){
-    Geolocation.getCurrentPosition().then((resp)=>{
-      const coords=resp.coords
-      this.global.longitude=coords.longitude;
-      this.global.latitude=coords.latitude;
-      alert(coords.longitude);
-      
-    }).catch((error)=>{alert(error);});
+  getPosition(setAlert: boolean = true) {
+    Geolocation.getCurrentPosition()
+      .then((resp) => {
+        const coords = resp.coords;
+        this.global.longitude = coords.longitude;
+        this.global.latitude = coords.latitude;
+
+        const field = geomag.field(this.global.latitude, this.global.longitude);
+        if (setAlert)
+          alert(
+            `long: ${degreesToString(this.global.longitude)}\nlat: ${degreesToString(this.global.latitude)}\ndec: ${degreesToString(
+              field.declination
+            )}`
+          );
+      })
+      .catch((error) => {
+        alert(error);
+      });
+  }
+  get tableData(){
+  return [
+    {
+      name: "Sensor Position",
+      declination: this.global.sensorPosition.equatorialString.declination,
+      rightAscension: this.global.sensorPosition.equatorialString.rightAscension,
+      azimuth: this.global.sensorPosition.horizontalString.azimuth,
+      altitude: this.global.sensorPosition.horizontalString.altitude,
+    },
+    {
+      name: "Stepper Position",
+      declination: this.global.actualPosition.equatorialString.declination,
+      rightAscension: this.global.actualPosition.equatorialString.rightAscension,
+      azimuth: this.global.actualPosition.horizontalString.azimuth,
+      altitude: this.global.actualPosition.horizontalString.altitude,
+    },
+    {
+      name: "Target Position",
+      declination: this.global.targetPosition.equatorialString.declination,
+      rightAscension: this.global.targetPosition.equatorialString.rightAscension,
+      azimuth: this.global.targetPosition.horizontalString.azimuth,
+      altitude: this.global.targetPosition.horizontalString.altitude,
+    },
+  ];
   }
 }
 </script>

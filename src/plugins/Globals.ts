@@ -7,99 +7,141 @@ import { degreesToString, hoursToString } from "./helper";
 
 export default class Globals {
   private static instance: Globals;
-  longitude= 14 + 2 / 60 + 40.92 / 3600;
-  latitude= 53 + 44 / 60 + 16.44 / 3600;
+  private _longitude = 14 + 2 / 60 + 40.92 / 3600;
+  public get longitude() {
+    return this._longitude;
+  }
+  public set longitude(value) {
+    this.actualPosition.longitude=value;
+    this.sensorPosition.longitude=value;
+    this.targetPosition.longitude=value;
+    this._longitude = value;
+  }
+  private _latitude = 53 + 44 / 60 + 16.44 / 3600;
+  public get latitude() {
+    return this._latitude;
+  }
+  public set latitude(value) {
+    this.actualPosition.latitude=value;
+    this.sensorPosition.latitude=value;
+    this.targetPosition.latitude=value;
+    this._latitude = value;
+  }
   public static getInstance(): Globals {
     if (this.instance == undefined) {
       this.instance = new Globals();
     }
     return this.instance;
   }
-  private sensorPosition: HorizontalCoordinates = {
-    altitude: 0,
-    azimuth: 0
-  };
-  private targetPosition: EquatorialCoordinates = {
-    declination: 0,
-    rightAscension: 0
-  };
-  private actualPosition: HorizontalCoordinates = {
-    altitude: 0,
-    azimuth: 0
-  };
+  public sensorPosition: StellarPosition = new StellarPosition("horizontal");
+  public targetPosition:  StellarPosition = new StellarPosition("equatorial");
+  public actualPosition:  StellarPosition = new StellarPosition("horizontal");
+}
 
-  public get actualPositionHorizontal(): HorizontalCoordinates {
-    return this.actualPosition;
-  }
+export class StellarPosition {
+  private _vertical: number;
+  private _horizontal: number;
+  private type: "horizontal" | "equatorial";
+  longitude = 14 + 2 / 60 + 40.92 / 3600;
+  latitude = 53 + 44 / 60 + 16.44 / 3600;
 
-  public get actualPositionHorizontalString(): {
-    altitude: string;
-    azimuth: string;
-  } {
-    return {
-      altitude: degreesToString(this.actualPosition.altitude),
-      azimuth: degreesToString(this.actualPosition.azimuth)
-    };
+  constructor(
+    type: "horizontal" | "equatorial"
+  ) {
+    this._horizontal=0;
+    this._vertical = 0;
+    this.type = type;
   }
 
-  public get sensorPositionHorizontalString(): {
-    altitude: string;
-    azimuth: string;
-  } {
-    return {
-      altitude: degreesToString(this.sensorPosition.altitude),
-      azimuth: degreesToString(this.sensorPosition.azimuth)
-    };
-  }
-  public set actualPositionHorizontal(value: HorizontalCoordinates) {
-    this.actualPosition = value;
-  }
-
-  public get actualPositionEquatorial(): EquatorialCoordinates {
-    const jd = aa.julianday.getJulianDay(new Date()) || 0;
-    const eq = aa.coordinates.transformHorizontalToEquatorial(
-      jd,
-      this.actualPosition.altitude,
-      this.actualPosition.azimuth,
-      this.longitude,
-      this.latitude
-    );
-    eq.rightAscension -= 0.5 / 3600;
-    eq.rightAscension = Math.max(eq.rightAscension, 0);
-    return eq;
+  get equatorial(): EquatorialCoordinates {
+    if (this.type == "equatorial") {
+      return {
+        declination: this._vertical,
+        rightAscension: this._horizontal
+      };
+    } else {
+      const jd = aa.julianday.getJulianDay(new Date()) || 0;
+      return aa.coordinates.transformHorizontalToEquatorial(
+        jd,
+        this._vertical,
+        this._horizontal,
+        this.longitude,
+        this.latitude
+      );
+    }
   }
 
-  public get sensorPositionHorizontal(): HorizontalCoordinates {
-    return this.sensorPosition;
-  }
-  public set sensorPositionHorizontal(value: HorizontalCoordinates) {
-    this.sensorPosition = value;
-  }
-
-  public get targetPositionHorizontal(): HorizontalCoordinates {
-    const jd = aa.julianday.getJulianDay(new Date()) || 0;
-    return aa.coordinates.transformEquatorialToHorizontal(
-      jd,
-      this.longitude,
-      this.latitude,
-      this.targetPosition.rightAscension,
-      this.targetPosition.declination
-    );
-  }
-
-  public get targetPositionEquatorial(): EquatorialCoordinates {
-    return this.targetPosition;
-  }
-  public get targetPositionEquatorialString(): {
+  get equatorialString(): {
     declination: string;
     rightAscension: string;
   } {
+    const eq = this.equatorial;
     return {
-      declination: degreesToString(this.targetPosition.declination),
-      rightAscension: hoursToString(this.targetPosition.rightAscension)
+      declination: degreesToString(eq.declination),
+      rightAscension: hoursToString(eq.rightAscension)
     };
   }
-  public set targetPositionEquatorial(value: EquatorialCoordinates) {
-    this.targetPosition = value;
+
+  set equatorial(val) {
+    if (this.type == "equatorial") {
+      this._vertical = val.declination;
+      this._horizontal = val.rightAscension;
+    } else {
+      const jd = aa.julianday.getJulianDay(new Date()) || 0;
+      const hori = aa.coordinates.transformEquatorialToHorizontal(
+        jd,
+        this.longitude,
+        this.latitude,
+        val.rightAscension,
+        val.declination
+      );
+
+      this._vertical = hori.altitude;
+      this._horizontal = hori.azimuth;
+    }
+  }
+
+  get horizontal(): HorizontalCoordinates {
+    if (this.type == "horizontal") {
+      return {
+        altitude: this._vertical,
+        azimuth: this._horizontal
+      };
+    } else {
+      const jd = aa.julianday.getJulianDay(new Date()) || 0;
+      return aa.coordinates.transformEquatorialToHorizontal(
+        jd,
+        this.longitude,
+        this.latitude,
+        this._horizontal,
+        this._vertical
+      );
+    }
+  }
+
+  get horizontalString(): { azimuth: string; altitude: string } {
+    const hori = this.horizontal;
+    return {
+      altitude: degreesToString(hori.altitude),
+      azimuth: degreesToString(hori.azimuth)
+    };
+  }
+
+  set horizontal(val) {
+    if (this.type == "horizontal") {
+      this._vertical = val.altitude;
+      this._horizontal = val.azimuth;
+    } else {
+      const jd = aa.julianday.getJulianDay(new Date()) || 0;
+      const eq = aa.coordinates.transformHorizontalToEquatorial(
+        jd,
+        this._vertical,
+        this._horizontal,
+        this.longitude,
+        this.latitude
+      );
+      this._vertical = eq.declination;
+      this._horizontal = eq.rightAscension;
+    }
   }
 }
