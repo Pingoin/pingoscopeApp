@@ -13,6 +13,7 @@
     <q-btn elevation="2" @click="connectSocket()">mit Socket verbinden</q-btn>
     <q-btn elevation="2" @click="disconnectSocket()">von Socket Trennen</q-btn>
     <q-btn elevation="2" @click="getPosition()">Position</q-btn>
+    <q-toggle v-model="sendTarget" label="Ziel senden" />
   </div>
 </template>
 
@@ -38,6 +39,7 @@ export default class Telescope extends Vue {
   device: Device | null = null;
   output = "";
   devices: Device[] = [];
+  private sendTarget: boolean = false;
 
   private calibrationStatus = {
     sys: 0,
@@ -57,7 +59,7 @@ export default class Telescope extends Vue {
     this.getPosition(false);
     // we register the event like on plugin's doc page
     BluetoothSerial.list().then((devices) => {
-      this.devices=[];
+      this.devices = [];
       (devices as Device[]).forEach((device) => {
         this.devices.push(device);
       });
@@ -129,7 +131,7 @@ export default class Telescope extends Vue {
       case 1:
         //console.log(msg);
         this.global.actualPosition.horizontal = {
-          azimuth: parseFloat(msg[1]),
+          azimuth: parseFloat(msg[1])-this.global.magneticDeclination,
           altitude: parseFloat(msg[2]),
         };
         //this.sendPosition();
@@ -139,7 +141,7 @@ export default class Telescope extends Vue {
         break;
       case 3:
         this.global.sensorPosition.horizontal = {
-          azimuth: parseFloat(msg[1]),
+          azimuth: parseFloat(msg[1])-this.global.magneticDeclination,
           altitude: parseFloat(msg[2]),
         };
       default:
@@ -153,11 +155,17 @@ export default class Telescope extends Vue {
       .then(() => BluetoothSerial.write("01\n"))
       .then(() => new Promise((resolve) => setTimeout(resolve, 100)))
       .then(() => {
-        const { azimuth, altitude } = this.global.targetPosition.horizontal;
-        const msg = `02;${azimuth > 0 ? "+" : ""}${azimuth.toPrecision(Math.abs(azimuth) > 1 ? 16 : 15)};${
-          altitude > 0 ? "+" : ""
-        }${altitude.toPrecision(Math.abs(altitude) > 1 ? 16 : 15)}\n`;
-        return BluetoothSerial.write(msg);
+        if (this.sendTarget) {
+          const azimuth=this.global.targetPosition.horizontal.azimuth+this.global.magneticDeclination;
+          const altitude=this.global.targetPosition.horizontal.altitude;
+
+          const msg = `02;${azimuth > 0 ? "+" : ""}${azimuth.toPrecision(Math.abs(azimuth) > 1 ? 16 : 15)};${
+            altitude > 0 ? "+" : ""
+          }${altitude.toPrecision(Math.abs(altitude) > 1 ? 16 : 15)}\n`;
+          return BluetoothSerial.write(msg);
+        } else {
+          return new Promise((resolve) => setTimeout(resolve, 100));
+        }
       })
       .then(() => new Promise((resolve) => setTimeout(resolve, 100)))
       .then(() => BluetoothSerial.write("03\n"))
@@ -176,41 +184,43 @@ export default class Telescope extends Vue {
         this.global.latitude = coords.latitude;
 
         const field = geomag.field(this.global.latitude, this.global.longitude);
-        if (setAlert)
+        if (setAlert) {
+          this.global.magneticDeclination = field.declination;
           alert(
             `long: ${degreesToString(this.global.longitude)}\nlat: ${degreesToString(this.global.latitude)}\ndec: ${degreesToString(
               field.declination
             )}`
           );
+        }
       })
       .catch((error) => {
         alert(error);
       });
   }
-  get tableData(){
-  return [
-    {
-      name: "Sensor Position",
-      declination: this.global.sensorPosition.equatorialString.declination,
-      rightAscension: this.global.sensorPosition.equatorialString.rightAscension,
-      azimuth: this.global.sensorPosition.horizontalString.azimuth,
-      altitude: this.global.sensorPosition.horizontalString.altitude,
-    },
-    {
-      name: "Stepper Position",
-      declination: this.global.actualPosition.equatorialString.declination,
-      rightAscension: this.global.actualPosition.equatorialString.rightAscension,
-      azimuth: this.global.actualPosition.horizontalString.azimuth,
-      altitude: this.global.actualPosition.horizontalString.altitude,
-    },
-    {
-      name: "Target Position",
-      declination: this.global.targetPosition.equatorialString.declination,
-      rightAscension: this.global.targetPosition.equatorialString.rightAscension,
-      azimuth: this.global.targetPosition.horizontalString.azimuth,
-      altitude: this.global.targetPosition.horizontalString.altitude,
-    },
-  ];
+  get tableData() {
+    return [
+      {
+        name: "Sensor Position",
+        declination: this.global.sensorPosition.equatorialString.declination,
+        rightAscension: this.global.sensorPosition.equatorialString.rightAscension,
+        azimuth: this.global.sensorPosition.horizontalString.azimuth,
+        altitude: this.global.sensorPosition.horizontalString.altitude,
+      },
+      {
+        name: "Stepper Position",
+        declination: this.global.actualPosition.equatorialString.declination,
+        rightAscension: this.global.actualPosition.equatorialString.rightAscension,
+        azimuth: this.global.actualPosition.horizontalString.azimuth,
+        altitude: this.global.actualPosition.horizontalString.altitude,
+      },
+      {
+        name: "Target Position",
+        declination: this.global.targetPosition.equatorialString.declination,
+        rightAscension: this.global.targetPosition.equatorialString.rightAscension,
+        azimuth: this.global.targetPosition.horizontalString.azimuth,
+        altitude: this.global.targetPosition.horizontalString.altitude,
+      },
+    ];
   }
 }
 </script>

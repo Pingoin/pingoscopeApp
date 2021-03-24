@@ -7,6 +7,7 @@ import { degreesToString, hoursToString } from "./helper";
 
 export default class Globals {
   private static instance: Globals;
+  public magneticDeclination:number=0;
   private _longitude = 14 + 2 / 60 + 40.92 / 3600;
   public get longitude() {
     return this._longitude;

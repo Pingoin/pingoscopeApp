@@ -32,7 +32,7 @@ export default class Stellarium extends Vue {
   }
 
   private setTargetByStellarium(chunk: Buffer): void {
-    this.global.targetPositionEquatorial = {
+    this.global.targetPosition.equatorial = {
       declination: (chunk.readInt32LE(16) / 0x40000000) * 90,
       rightAscension: (chunk.readUInt32LE(12) / 0x100000000) * 24,
     };
